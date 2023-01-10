@@ -1,10 +1,8 @@
 import bodyParser from "body-parser";
-import cluster from "cluster";
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
-import os from "os";
 import { connection } from "./infra/database/Connection";
 import routes from "./middlewares/Routes";
 
@@ -20,29 +18,15 @@ const slower = slowDown({
   delayMs: 100,
 });
 
-if (cluster.isPrimary) {
-  const cpus = os.cpus().length;
-  console.log(`Número de CPUs ==> ${cpus}`);
-  console.log(`Master ${process.pid} está rodando ...`);
-  for (let i = 0; i < 2; i++) {
-    cluster.fork();
-  }
-  cluster.on("exit", (worker, code, signal) => {
-    console.log(`Worker ${worker.process.pid} morreu ...`);
-    console.log("Criar nova worker");
-    cluster.fork();
-  });
-} else {
-  const app = express();
-  app.use(bodyParser.json({ limit: "70mb" }));
-  app.use(bodyParser.urlencoded({ limit: "70mb", extended: true }));
-  app.use(cors());
-  app.use(routes);
-  app.use(limiter, slower);
-  app.listen(PORT, () => {
-    console.log("🚀 Server ready...");
-  });
-}
+const app = express();
+app.use(bodyParser.json({ limit: "70mb" }));
+app.use(bodyParser.urlencoded({ limit: "70mb", extended: true }));
+app.use(cors());
+app.use(routes);
+app.use(limiter, slower);
+app.listen(PORT, () => {
+  console.log("🚀 Server ready...");
+});
 
 function gracefulShutdown(code: any) {
   return (event: any) => {
